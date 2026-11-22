@@ -40,6 +40,9 @@ export default function Book() {
   const [done, setDone] = useState(false);
   const refs = { name: useRef(null), phone: useRef(null), email: useRef(null) };
   const headRef = useRef(null);
+  const stepsRef = useRef(null);
+  const errRef = useRef(null);
+  const firstRender = useRef(true);
 
   useEffect(() => {
     api.getSettings().then((s) => s && setSettings(s)).catch(logError);
@@ -54,7 +57,17 @@ export default function Book() {
   }, [day, done]);
 
   // Move focus to the step heading when the step changes (keyboard and screen-reader users).
-  useEffect(() => { headRef.current?.focus({ preventScroll: true }); }, [step, done]);
+  // and bring the new step into view: the step list and the card's top sit just under the fixed header.
+  useEffect(() => {
+    if (firstRender.current) { firstRender.current = false; return; }
+    const smooth = !window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const target = done ? null : stepsRef.current;
+    const header = document.querySelector('.hdr')?.offsetHeight || 0;
+    const top = target ? Math.max(0, target.getBoundingClientRect().top + window.scrollY - header - 16) : 0;
+    window.scrollTo({ top, behavior: smooth ? 'smooth' : 'auto' });
+    headRef.current?.focus({ preventScroll: true });
+  }, [step, done]);
+  useEffect(() => { if (serverErr) errRef.current?.scrollIntoView({ block: 'center', behavior: 'smooth' }); }, [serverErr]);
 
   const dirty = !done && (form.name || form.phone || form.note);
   useEffect(() => {
@@ -163,7 +176,7 @@ export default function Book() {
           <Link className="back" to="/">← {b.back}</Link>
           <h1>{b.title}</h1>
           <p>{b.lead}</p>
-          <ol className="steps" aria-label={b.title}>
+          <ol className="steps" aria-label={b.title} ref={stepsRef}>
             {b.steps.map((s, i) => (
               <li key={s} className={step === i + 1 ? 'is-on' : step > i + 1 ? 'is-done' : ''} aria-current={step === i + 1 ? 'step' : undefined}>
                 <span>{i + 1}</span>{s}
@@ -279,7 +292,7 @@ export default function Book() {
                     <input id="f-website" name="website" tabIndex={-1} autoComplete="off" value={form.website} onChange={(e) => setForm((f) => ({ ...f, website: e.target.value }))} />
                   </div>
                 </div>
-                {serverErr && <p className="err err--box" role="alert">{serverErr}</p>}
+                {serverErr && <p className="err err--box" role="alert" ref={errRef}>{serverErr}</p>}
                 <div className="book__nav">
                   <button type="button" className="btn btn-ghost" onClick={() => set({ step: 2 })}>← {b.prev}</button>
                   <button type="submit" className="btn btn-solid btn-lg" disabled={sending}>{sending ? b.sending : b.submit}</button>
