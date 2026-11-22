@@ -20,10 +20,13 @@ jobs:
         run: |
           set -euo pipefail
           curl -fsS -o /dev/null -w "site: %{http_code}\n" "$SITE/"
-          JS=$(curl -fsS "$SITE/" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
-          KEY=$(curl -fsS "$SITE$JS" | grep -oE 'sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
+          KEY=""
+          for JS in $(curl -fsS "$SITE/" | grep -oE '/assets/[A-Za-z0-9_.-]+\.js' | sort -u); do
+            KEY=$(curl -fsS "$SITE$JS" | grep -oE 'sb_publishable_[A-Za-z0-9_-]+' | head -1 || true)
+            [ -n "$KEY" ] && break
+          done
           test -n "$KEY" || { echo "Key not found in the site bundle"; exit 1; }
           DAY=$(date -u -d '+1 day' +%F)
           curl -fsS -X POST "$SUPABASE_URL/rest/v1/rpc/get_availability" \
-            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+            -H "apikey: $KEY" -H "Content-Type: application/json" \
             -d "{\"p_day\":\"$DAY\"}" -o /dev/null -w "database: %{http_code}\n"
