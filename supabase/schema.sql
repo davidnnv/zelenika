@@ -318,6 +318,9 @@ grant execute on function public.save_push_subscription(text, text, text, text) 
 grant execute on function public.test_push() to authenticated;
 grant execute on function public.get_vapid_public_key() to anon, authenticated;
 grant execute on function public.check_push_secret(text), public.get_vapid_keys(), public.save_vapid_keys(text, text) to service_role;
+-- Edge функцијата (service_role) ги чита и чисти претплатите. Новите Supabase проекти не даваат автоматски права на табели.
+grant usage on schema public to service_role;
+grant select, delete on public.push_subscriptions to service_role;
 
 alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
