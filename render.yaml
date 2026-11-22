@@ -1,5 +1,5 @@
 # Render Blueprint for the live site (static site + security headers + SPA routing).
-# Keys are NOT stored here: set VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY and VITE_VAPID_PUBLIC_KEY in Render → Environment.
+# Keys are NOT stored here: set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in Render → Environment.
 services:
   - type: web
     name: zelenika
@@ -10,8 +10,6 @@ services:
       - key: VITE_SUPABASE_URL
         sync: false
       - key: VITE_SUPABASE_ANON_KEY
-        sync: false
-      - key: VITE_VAPID_PUBLIC_KEY
         sync: false
     routes:
       - type: rewrite

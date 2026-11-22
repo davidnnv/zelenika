@@ -1,10 +1,11 @@
 // Supabase Edge Function: sends a Web Push notification to every admin device
 // when a new reservation is created (called by the database trigger in schema.sql).
 //
-// Secrets (Supabase → Edge Functions → Secrets):
-//   VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT (mailto:you@example.com), PUSH_SECRET
+// No secrets to copy by hand: the database generates the shared secret (private.config → push_secret)
+// and this function creates the VAPID keys on its first call and stores them in the database.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are provided by Supabase automatically.
-// Deploy with "Verify JWT" turned OFF — the request is checked with PUSH_SECRET instead.
+// Optional secret VAPID_SUBJECT (default mailto:shale.bastion@gmail.com).
+// Deploy with "Verify JWT" turned OFF — every request is checked against the database secret instead.
 import webpush from 'npm:web-push@3.6.7';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 
@@ -13,17 +14,12 @@ const AREA: Record<string, string> = { terrace: 'тераса', covered: 'под
 const pad = (n: number) => String(n).padStart(2, '0');
 const time = (m: number) => (m >= 1440 ? '00:00' : `${pad(Math.floor(m / 60))}:${pad(m % 60)}`);
 
-function safeEqual(a: string, b: string) {
-  if (a.length !== b.length) return false;
-  let r = 0;
-  for (let i = 0; i < a.length; i++) r |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return r === 0;
-}
-
 Deno.serve(async (req) => {
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405 });
-  const secret = Deno.env.get('PUSH_SECRET') || '';
-  if (!secret || !safeEqual(req.headers.get('x-push-secret') || '', secret)) return new Response('Forbidden', { status: 403 });
+  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
+  const given = req.headers.get('x-push-secret') || '';
+  const { data: ok } = given.length === 64 ? await sb.rpc('check_push_secret', { p: given }) : { data: false };
+  if (!ok) return new Response('Forbidden', { status: 403 });
 
   let body: Record<string, unknown>;
   try {
@@ -32,11 +28,17 @@ Deno.serve(async (req) => {
     return new Response('Bad request', { status: 400 });
   }
 
-  webpush.setVapidDetails(
-    Deno.env.get('VAPID_SUBJECT') || 'mailto:admin@example.com',
-    Deno.env.get('VAPID_PUBLIC_KEY')!,
-    Deno.env.get('VAPID_PRIVATE_KEY')!,
-  );
+  // VAPID keys: created once, kept in the database.
+  let { data: keys } = await sb.rpc('get_vapid_keys');
+  let k = Array.isArray(keys) ? keys[0] : keys;
+  if (!k?.pub || !k?.priv) {
+    const g = webpush.generateVAPIDKeys();
+    await sb.rpc('save_vapid_keys', { p_pub: g.publicKey, p_priv: g.privateKey });
+    ({ data: keys } = await sb.rpc('get_vapid_keys'));
+    k = Array.isArray(keys) ? keys[0] : keys;
+  }
+  if (body.type === 'init') return new Response(JSON.stringify({ ready: !!k?.pub }), { headers: { 'Content-Type': 'application/json' } });
+  webpush.setVapidDetails(Deno.env.get('VAPID_SUBJECT') || 'mailto:shale.bastion@gmail.com', k.pub, k.priv);
 
   let title = 'Zelenika — пробно известување';
   let text = 'Известувањата работат на овој уред.';
@@ -50,7 +52,6 @@ Deno.serve(async (req) => {
   }
   const payload = JSON.stringify({ title, body: text, tag, url: '/admin' });
 
-  const sb = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, { auth: { persistSession: false } });
   const { data: subs, error } = await sb.from('push_subscriptions').select('id, endpoint, p256dh, auth');
   if (error) return new Response('DB error', { status: 500 });
 

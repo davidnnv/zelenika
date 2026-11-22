@@ -67,6 +67,7 @@ const live = {
   removePush: async (endpoint) => must(await sb.from('push_subscriptions').delete().eq('endpoint', endpoint)),
   countPush: async () => (must(await sb.from('push_subscriptions').select('id')) || []).length,
   testPush: async () => must(await sb.rpc('test_push')),
+  getVapidKey: async () => must(await sb.rpc('get_vapid_public_key')),
   subscribe: (cb) => {
     const ch = sb.channel(`res-live-${++channelSeq}`).on('postgres_changes', { event: '*', schema: 'public', table: 'reservations' }, cb).subscribe();
     return () => sb.removeChannel(ch);
@@ -165,6 +166,7 @@ const demo = {
   removePush: async () => delay(true),
   countPush: async () => delay(0),
   testPush: async () => { throw new Error('PUSH_NOT_CONFIGURED'); },
+  getVapidKey: async () => '',
   subscribe: (cb) => {
     listeners.add(cb);
     const onStorage = (e) => {

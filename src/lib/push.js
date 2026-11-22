@@ -1,15 +1,19 @@
 // Web Push for the admin: this device receives a notification for every new reservation,
-// even when the app is closed. Needs VITE_VAPID_PUBLIC_KEY (public) and the Edge Function in Supabase.
+// even when the app is closed. Needs the Edge Function in Supabase (supabase/functions/push-new-reservation).
 import { api } from './api';
 import { isIOS, isStandalone } from './pwa';
 
-export const VAPID = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+// The public VAPID key comes from the database (the Edge Function creates it); an env value can override it.
+let vapid = import.meta.env.VITE_VAPID_PUBLIC_KEY || '';
+export async function loadVapid() {
+  if (!vapid) vapid = (await api.getVapidKey().catch(() => '')) || '';
+  return vapid;
+}
 
 export function pushSupport() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     return isIOS() && !isStandalone() ? 'ios-install' : 'unsupported';
   }
-  if (!VAPID) return 'no-key';
   return 'ok';
 }
 
@@ -36,12 +40,14 @@ export async function currentSubscription() {
 
 /** Ask permission, subscribe this device and store it. Returns 'on' | 'denied'. */
 export async function enablePush() {
+  const key = await loadVapid();
+  if (!key) throw new Error('PUSH_NOT_CONFIGURED');
   const perm = await Notification.requestPermission();
   if (perm !== 'granted') return 'denied';
   const reg = (await navigator.serviceWorker.getRegistration()) || (await navigator.serviceWorker.register('/sw.js', { scope: '/' }));
   await navigator.serviceWorker.ready;
   let sub = await reg.pushManager.getSubscription();
-  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(VAPID) });
+  if (!sub) sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyBytes(key) });
   await api.savePush(sub, deviceName());
   return 'on';
 }

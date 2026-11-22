@@ -27,18 +27,15 @@ npm run dev
    insert into public.admins (user_id) select id from auth.users where email = 'sopstvenik@primer.mk';
    ```
 5. **Authentication → Sign In / Providers → Email**: исклучете *Allow new users to sign up*.
-6. **Push известувања** (телефонот на админот добива порака и кога апликацијата е затворена):
-   1. Генерирајте клучеви на компјутер: `npx web-push generate-vapid-keys`.
-   2. **Edge Functions → Deploy a new function → Via Editor**, име `push-new-reservation`, залепете `supabase/functions/push-new-reservation/index.ts`. Во поставките на функцијата исклучете **Verify JWT**.
-   3. **Edge Functions → Secrets**: `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` (на пр. `mailto:shale.bastion@gmail.com`) и `PUSH_SECRET` (долг случаен текст).
-   4. Во **SQL Editor** (со вашиот project ref и истиот `PUSH_SECRET`):
+6. **Push известувања** (телефонот на админот добива порака и кога апликацијата е затворена). Нема тајни клучеви за рачно копирање: базата сама прави заедничка тајна, а функцијата сама ги прави VAPID клучевите.
+   1. **Edge Functions → Deploy a new function → Via Editor**, име `push-new-reservation`, залепете `supabase/functions/push-new-reservation/index.ts`. Во **Settings** на функцијата исклучете **Verify JWT**.
+   2. Во **SQL Editor** (со вашиот project ref):
       ```sql
-      insert into private.config (key, value) values
-        ('push_url', 'https://XXXX.supabase.co/functions/v1/push-new-reservation'),
-        ('push_secret', 'ИСТИОТ-PUSH-SECRET')
-      on conflict (key) do update set value = excluded.value;
+      insert into private.config (key, value) values ('push_url', 'https://XXXX.supabase.co/functions/v1/push-new-reservation')
+        on conflict (key) do update set value = excluded.value;
+      select private.send_push('{"type":"init"}');
       ```
-7. **Project Settings → API**: копирајте *Project URL* и *anon public* клуч во `.env` (види `.env.example`), заедно со `VITE_VAPID_PUBLIC_KEY` (јавниот клуч од чекор 6.1).
+7. **Project Settings → API Keys**: копирајте *Project URL* и *publishable / anon* клуч во `.env` (види `.env.example`).
 
 ### Вклучување известувања на телефонот на сопственикот
 
@@ -49,7 +46,7 @@ npm run dev
 ## Објавување на Render
 
 **New → Blueprint** → репозиториумот (`render.yaml` ги поставува безбедносните headers и рутите).
-Во **Environment** внесете `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_VAPID_PUBLIC_KEY`.
+Во **Environment** внесете `VITE_SUPABASE_URL` и `VITE_SUPABASE_ANON_KEY`.
 
 ## Безбедност
 
@@ -61,7 +58,7 @@ npm run dev
 | Капацитет | Базата сама проверува работно време, затворени денови, капацитет по простор (тераса / под тенда) и ги заклучува истовремените резервации |
 | Rate limiting | Во базата: 5 резервации на час по IP, 3 активни по телефон, 60 вкупно за 10 мин |
 | XSS / форми | React ескејпира сè; базата брише HTML тагови и контролни знаци, проверува формат и должина; honeypot поле против ботови |
-| Push | Претплатите ги гледа/брише само админот за своите уреди; Edge функцијата прифаќа само барања со `PUSH_SECRET`; `VAPID_PRIVATE_KEY` е само во Supabase secrets |
+| Push | Претплатите ги гледа/брише само админот за своите уреди; Edge функцијата прифаќа само барања со тајната што ја генерира базата; приватниот VAPID клуч е само во базата, недостапен преку API |
 | API клучеви | Само преку env; anon клучот е јавен по дизајн, `service_role` никогаш во прелистувачот (апликацијата одбива да стартува со него) |
 | Безбедносни headers | CSP, HSTS, X-Frame-Options, nosniff, Referrer-Policy, Permissions-Policy (`render.yaml`, `security-headers.js`) |
 | Изложени фајлови | Се објавува само `dist/`, без source maps |

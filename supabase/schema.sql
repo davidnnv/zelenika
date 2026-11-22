@@ -87,7 +87,7 @@ create table if not exists private.attempts (
 );
 create index if not exists attempts_ip_idx on private.attempts (ip, created_at);
 
--- Тајни за push (адреса на функцијата и заедничка тајна). Пополнете ги по README чекор 6.
+-- Поставки за push: адреса на функцијата, заедничка тајна и VAPID клучеви (не е достапно преку API).
 create table if not exists private.config (key text primary key, value text not null);
 
 -- ---------- Помошни функции ----------
@@ -276,6 +276,37 @@ begin
 end;
 $$;
 
+
+-- ---------- Push клучеви (ги прави самата Edge функција; никој не ги копира рачно) ----------
+
+-- Јавниот VAPID клуч е јавен по дизајн: прелистувачот на админот го користи за претплата.
+create or replace function public.get_vapid_public_key()
+returns text language sql stable security definer set search_path = public, private as $$
+  select value from private.config where key = 'vapid_public';
+$$;
+
+-- Само за Edge функцијата (service_role):
+create or replace function public.check_push_secret(p text)
+returns boolean language sql stable security definer set search_path = public, private as $$
+  select exists (select 1 from private.config where key = 'push_secret' and value = p);
+$$;
+
+create or replace function public.get_vapid_keys()
+returns table (pub text, priv text) language sql stable security definer set search_path = public, private as $$
+  select (select value from private.config where key = 'vapid_public'), (select value from private.config where key = 'vapid_private');
+$$;
+
+create or replace function public.save_vapid_keys(p_pub text, p_priv text)
+returns void language sql security definer set search_path = public, private as $$
+  insert into private.config (key, value) values ('vapid_public', p_pub), ('vapid_private', p_priv)
+  on conflict (key) do nothing;
+$$;
+
+-- Заедничка тајна меѓу базата и функцијата: ја генерира базата, никој не ја гледа.
+create extension if not exists pgcrypto with schema extensions;
+insert into private.config (key, value) values ('push_secret', encode(extensions.gen_random_bytes(32), 'hex'))
+on conflict (key) do nothing;
+
 -- ---------- Права ----------
 
 revoke execute on all functions in schema public from public, anon, authenticated;
@@ -285,6 +316,8 @@ grant execute on function public.create_reservation(date, int, int, text, text, 
 grant execute on function public.is_admin() to anon, authenticated;
 grant execute on function public.save_push_subscription(text, text, text, text) to authenticated;
 grant execute on function public.test_push() to authenticated;
+grant execute on function public.get_vapid_public_key() to anon, authenticated;
+grant execute on function public.check_push_secret(text), public.get_vapid_keys(), public.save_vapid_keys(text, text) to service_role;
 
 alter default privileges in schema public revoke execute on functions from public, anon, authenticated;
 alter default privileges in schema public revoke all on tables from anon, authenticated;
@@ -339,6 +372,11 @@ create policy "admin read self" on public.admins for select using (user_id = aut
 do $$ begin
   alter publication supabase_realtime add table public.reservations;
 exception when others then null; end $$;
+
+-- ---------- Поврзување со Edge функцијата (еднаш, со вашиот project ref) ----------
+-- insert into private.config (key, value) values ('push_url', 'https://XXXX.supabase.co/functions/v1/push-new-reservation')
+--   on conflict (key) do update set value = excluded.value;
+-- select private.send_push('{"type":"init"}');   -- функцијата ги создава push клучевите
 
 -- ---------- Админ корисник ----------
 -- 1) Authentication → Users → Add user (е-пошта + лозинка, штиклирајте Auto Confirm User).
