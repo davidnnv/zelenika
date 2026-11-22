@@ -4,7 +4,7 @@ const mk = {
   nav: { terrace: 'Тераса', food: 'Кујна и бар', nights: 'Вечери', visit: 'Како до нас', book: 'Резервирај маса', menu: 'Мени', close: 'Затвори', main: 'Главно мени' },
   call: 'Јави се',
   langSwitch: 'Switch to English',
-  status: { open: 'Отворено сега', closed: 'Затворено', until: 'до', midnight: 'полноќ', opensToday: 'Отвораме денес во', opensTomorrow: 'Отвораме утре во', today: 'денес' },
+  status: { open: 'Отворено сега', closed: 'Затворено', until: 'до', midnight: 'полноќ', opensToday: 'Отвараме денес во', opensTomorrow: 'Отвараме утре во', today: 'денес' },
   hero: {
     title: 'Пивска градина на Средно Водно',
     lead: 'Ладно пиво, скара и пица од печка на тераса над Скопје. Свратете после планинарење или дојдете со семејството на ручек.',
