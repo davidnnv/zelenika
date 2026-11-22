@@ -165,6 +165,10 @@ export default function Home() {
             <OpenSign status={status} />
           </div>
           <p className="hero__hint" aria-hidden="true">{t.hero.drag}</p>
+          <p className="hero__hint hero__hint--touch" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M8 7l-4 5 4 5M16 7l4 5-4 5" /></svg>
+            {t.hero.dragTouch}
+          </p>
         </section>
 
         {/* ---------- Marquee ---------- */}

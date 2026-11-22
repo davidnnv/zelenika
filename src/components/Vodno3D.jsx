@@ -194,6 +194,27 @@ export default function Vodno3D({ labels }) {
       };
       const fine = window.matchMedia('(hover: hover) and (pointer: fine)').matches;
       if (fine && !calm) window.addEventListener('pointermove', onMove, { passive: true });
+
+      // Touch: drag sideways to turn the mountain (vertical swipes still scroll the page).
+      let drag = null;
+      let touched = false;
+      const onDown = (e) => {
+        if (e.pointerType === 'mouse') return;
+        drag = { id: e.pointerId, x: e.clientX, y: e.clientY, az: look.taz, el: look.tel };
+        touched = true;
+      };
+      const onDrag = (e) => {
+        if (!drag || e.pointerId !== drag.id) return;
+        const w = host.clientWidth || 1;
+        look.taz = Math.max(-1.1, Math.min(1.1, drag.az + ((e.clientX - drag.x) / w) * 1.6));
+        look.tel = Math.max(-0.16, Math.min(0.2, drag.el - ((e.clientY - drag.y) / w) * 0.3));
+        if (calm) { look.az = look.taz; look.el = look.tel; render(0); }
+      };
+      const onUp = (e) => { if (drag && e.pointerId === drag.id) drag = null; };
+      host.addEventListener('pointerdown', onDown, { passive: true });
+      host.addEventListener('pointermove', onDrag, { passive: true });
+      host.addEventListener('pointerup', onUp, { passive: true });
+      host.addEventListener('pointercancel', onUp, { passive: true });
       if (!calm) window.addEventListener('scroll', onScroll, { passive: true });
 
       /* ---- Labels follow their 3D points ---- */
@@ -229,6 +250,7 @@ export default function Vodno3D({ labels }) {
       function render(dt) {
         t += dt;
         if (intro < 1) intro = Math.min(1, intro + dt / 2.4);
+        if (!fine && !touched && intro >= 1) look.taz = Math.sin(t * 0.35) * 0.35; // gentle sway until the first touch
         look.az += (look.taz - look.az) * Math.min(1, dt * 3);
         look.el += (look.tel - look.el) * Math.min(1, dt * 3);
         terrainMat.uniforms.uTime.value = t;
@@ -265,6 +287,10 @@ export default function Vodno3D({ labels }) {
         stop(); ro.disconnect(); io.disconnect();
         document.removeEventListener('visibilitychange', onVis);
         window.removeEventListener('pointermove', onMove);
+        host.removeEventListener('pointerdown', onDown);
+        host.removeEventListener('pointermove', onDrag);
+        host.removeEventListener('pointerup', onUp);
+        host.removeEventListener('pointercancel', onUp);
         window.removeEventListener('scroll', onScroll);
         scene.traverse((o) => { o.geometry?.dispose?.(); o.material?.dispose?.(); });
         renderer.dispose();
