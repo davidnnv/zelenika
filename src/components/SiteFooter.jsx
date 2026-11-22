@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useLang } from '../lang';
 import { BUSINESS } from '../lib/config';
 import InstallButton from './InstallButton';
+import { openCookieSettings } from './CookieConsent';
 import { A } from '../lib/asset';
 
 export default function SiteFooter() {
@@ -28,7 +29,11 @@ export default function SiteFooter() {
       </div>
       <div className="ftr__bar">
         <span translate="no">© Zelenika Beer Garden</span>
-        <Link to="/admin" rel="nofollow">{t.footer.admin}</Link>
+        <span className="ftr__credit">{t.credit} <a href="https://iomys.onrender.com" target="_blank" rel="noopener" translate="no">IOMYS</a></span>
+        <span className="ftr__links">
+          <button type="button" className="linkbtn" onClick={openCookieSettings}>{t.cookies.settings}</button>
+          <Link to="/admin" rel="nofollow">{t.footer.admin}</Link>
+        </span>
       </div>
     </footer>
   );

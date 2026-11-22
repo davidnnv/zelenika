@@ -11,6 +11,7 @@ import { dayName, fmtTime } from '../lib/time';
 import { A } from '../lib/asset';
 
 const Vodno3D = lazy(() => import('../components/Vodno3D'));
+const Lightbox = lazy(() => import('../components/Lightbox'));
 
 const MOSAIC = [
   ['hero', 1440, 810, 'big', { mk: 'Тераса на зајдисонце со поглед кон планините', en: 'Terrace at sunset looking at the mountains' }],
@@ -26,6 +27,30 @@ const SPOTS = [
   ['pergola', 27, 47], ['upper', 48, 30], ['house', 68, 28], ['gate', 44, 64], ['road', 22, 74],
 ];
 
+// Every photo that opens full-screen, in viewing order.
+const EXTRA = {
+  drone: [1440, 959, { mk: 'Градината одозгора, снимено со дрон', en: 'The garden from above, drone photo' }],
+  spread: [1200, 800, { mk: 'Маса полна со скара, пица и кригли пиво', en: 'Table full of grill, pizza and beer mugs' }],
+  pizza: [960, 1200, { mk: 'Пица со печурки и маслинки', en: 'Pizza with mushrooms and olives' }],
+  fillet: [960, 1200, { mk: 'Свинско филе со сос од печурки', en: 'Pork fillet with mushroom sauce' }],
+  aperol: [944, 1181, { mk: 'Aperol Spritz со поглед кон Скопје', en: 'Aperol Spritz looking over Skopje' }],
+  dj: [900, 1200, { mk: 'Диџеј пред полна тераса под црвени светла', en: 'DJ playing to a full terrace under red lights' }],
+  martini: [961, 1200, { mk: 'Два коктели навечер во градината', en: 'Two cocktails in the garden at night' }],
+  sign: [960, 1200, { mk: 'Табла во форма на стрелка со натпис Zelenika покрај патеката', en: 'Arrow-shaped Zelenika sign beside the trail' }],
+};
+const GALLERY = [...MOSAIC.map(([k, w, h, , alt]) => ({ k, w, h, alt })), ...Object.entries(EXTRA).map(([k, [w, h, alt]]) => ({ k, w, h, alt }))];
+
+function Zoom({ k, onZoom, label, className, children, ...rest }) {
+  return (
+    <button type="button" className={`zoom ${className || ''}`} onClick={() => onZoom(k)} aria-label={label} {...rest}>
+      {children}
+      <span className="zoom__icon" aria-hidden="true">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+      </span>
+    </button>
+  );
+}
+
 const FOOD_IMG = ['spread', 'pizza', 'fillet', 'cheers', 'cheers', 'aperol', 'court'];
 
 function OpenSign({ status, small }) {
@@ -39,7 +64,7 @@ function OpenSign({ status, small }) {
   );
 }
 
-function Aerial({ t }) {
+function Aerial({ t, onZoom }) {
   const [active, setActive] = useState(null);
   return (
     <section className="aerial" id="odgore" aria-labelledby="aerial-h">
@@ -49,6 +74,10 @@ function Aerial({ t }) {
       </div>
       <div className="aerial__stage" data-reveal="zoom">
         <img src={A('photos/drone.webp')} width="1440" height="959" loading="lazy" alt={t.aerial.title} />
+        <button type="button" className="aerial__full" onClick={() => onZoom('drone')}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" /></svg>
+          {t.zoom.full}
+        </button>
         {SPOTS.map(([k, x, y], i) => {
           const [name, desc] = t.aerial.spots[k];
           const on = active === k;
@@ -111,6 +140,9 @@ export default function Home() {
   useReveal([lang]);
   use3D();
   const order = [1, 2, 3, 4, 5, 6, 0];
+  const [lb, setLb] = useState(-1);
+  const zoom = (k) => setLb(GALLERY.findIndex((g) => g.k === k));
+  const zl = (alt) => `${t.zoom.open}: ${alt}`;
 
   return (
     <>
@@ -159,7 +191,7 @@ export default function Home() {
             <div className="mosaic">
               {MOSAIC.map(([k, w, h, cls, alt], i) => (
                 <figure key={k} className={cls} data-reveal="tilt3d" data-tilt="6" style={{ '--d': i % 3 }}>
-                  <img src={A(`photos/${k}.webp`)} width={w} height={h} alt={alt[lang]} loading="lazy" />
+                  <Zoom k={k} onZoom={zoom} label={zl(alt[lang])}><img src={A(`photos/${k}.webp`)} width={w} height={h} alt="" loading="lazy" /></Zoom>
                 </figure>
               ))}
             </div>
@@ -167,7 +199,7 @@ export default function Home() {
         </section>
 
         {/* ---------- Aerial ---------- */}
-        <Aerial t={t} />
+        <Aerial t={t} onZoom={zoom} />
 
         {/* ---------- Food ---------- */}
         <section className="band" id="kujna" aria-labelledby="food-h">
@@ -179,10 +211,10 @@ export default function Home() {
               <p className="note">{t.food.note}</p>
             </div>
             <div className="plates" data-depth-stage>
-              <figure className="plates__a" data-depth="3" data-tilt="8"><img src={A('photos/spread.webp')} width="1200" height="800" loading="lazy" alt={lang === 'mk' ? 'Маса полна со скара, пица и кригли пиво' : 'Table full of grill, pizza and beer mugs'} /></figure>
-              <figure className="plates__b" data-depth="6" data-tilt="8"><img src={A('photos/pizza.webp')} width="960" height="1200" loading="lazy" alt={lang === 'mk' ? 'Пица со печурки и маслинки' : 'Pizza with mushrooms and olives'} /></figure>
-              <figure className="plates__c" data-depth="9" data-tilt="8"><img src={A('photos/aperol.webp')} width="944" height="1181" loading="lazy" alt={lang === 'mk' ? 'Aperol Spritz со поглед кон Скопје' : 'Aperol Spritz looking over Skopje'} /></figure>
-              <figure className="plates__d" data-depth="4" data-tilt="8"><img src={A('photos/fillet.webp')} width="960" height="1200" loading="lazy" alt={lang === 'mk' ? 'Свинско филе со сос од печурки' : 'Pork fillet with mushroom sauce'} /></figure>
+              <figure className="plates__a" data-depth="3" data-tilt="8"><Zoom k="spread" onZoom={zoom} label={zl(EXTRA.spread[2][lang])}><img src={A('photos/spread.webp')} width="1200" height="800" loading="lazy" alt="" /></Zoom></figure>
+              <figure className="plates__b" data-depth="6" data-tilt="8"><Zoom k="pizza" onZoom={zoom} label={zl(EXTRA.pizza[2][lang])}><img src={A('photos/pizza.webp')} width="960" height="1200" loading="lazy" alt="" /></Zoom></figure>
+              <figure className="plates__c" data-depth="9" data-tilt="8"><Zoom k="aperol" onZoom={zoom} label={zl(EXTRA.aperol[2][lang])}><img src={A('photos/aperol.webp')} width="944" height="1181" loading="lazy" alt="" /></Zoom></figure>
+              <figure className="plates__d" data-depth="4" data-tilt="8"><Zoom k="fillet" onZoom={zoom} label={zl(EXTRA.fillet[2][lang])}><img src={A('photos/fillet.webp')} width="960" height="1200" loading="lazy" alt="" /></Zoom></figure>
             </div>
           </div>
         </section>
@@ -190,8 +222,8 @@ export default function Home() {
         {/* ---------- Nights ---------- */}
         <section className="nights" id="vecheri" aria-labelledby="nights-h">
           <div className="nights__media" data-depth-stage>
-            <img className="nights__a" data-depth="2" src={A('photos/dj.webp')} width="900" height="1200" loading="lazy" alt={lang === 'mk' ? 'Диџеј пред полна тераса под црвени светла' : 'DJ playing to a full terrace under red lights'} />
-            <img className="nights__b" data-depth="7" src={A('photos/martini.webp')} width="961" height="1200" loading="lazy" alt="" />
+            <Zoom k="dj" onZoom={zoom} label={zl(EXTRA.dj[2][lang])} className="nights__a" data-depth="2"><img src={A('photos/dj.webp')} width="900" height="1200" loading="lazy" alt="" /></Zoom>
+            <Zoom k="martini" onZoom={zoom} label={zl(EXTRA.martini[2][lang])} className="nights__b" data-depth="7"><img src={A('photos/martini.webp')} width="961" height="1200" loading="lazy" alt="" /></Zoom>
           </div>
           <div className="nights__txt">
             <h2 id="nights-h" data-reveal>{t.nights.title}</h2>
@@ -224,7 +256,7 @@ export default function Home() {
             <div>
               <h2>{t.visit.how}</h2>
               <div className="way">
-                <figure data-tilt="6"><img src={A('photos/sign.webp')} width="960" height="1200" loading="lazy" alt={lang === 'mk' ? 'Табла во форма на стрелка со натпис Zelenika покрај патеката' : 'Arrow-shaped Zelenika sign beside the trail'} /></figure>
+                <figure data-tilt="6"><Zoom k="sign" onZoom={zoom} label={zl(EXTRA.sign[2][lang])}><img src={A('photos/sign.webp')} width="960" height="1200" loading="lazy" alt="" /></Zoom></figure>
                 <ul>
                   {[t.visit.foot, t.visit.car, t.visit.summit].map(([a, b]) => (<li key={a}><b>{a}</b><span>{b}</span></li>))}
                 </ul>
@@ -251,6 +283,11 @@ export default function Home() {
         </section>
       </main>
       <SiteFooter />
+      {lb >= 0 && (
+        <Suspense fallback={null}>
+          <Lightbox items={GALLERY.map((g) => ({ ...g, alt: g.alt[lang] }))} index={lb} onIndex={setLb} onClose={() => setLb(-1)} labels={t.zoom} />
+        </Suspense>
+      )}
     </>
   );
 }

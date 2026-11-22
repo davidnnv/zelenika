@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect } from 'react';
 import { Route, Routes, useLocation } from 'react-router-dom';
 import Home from './pages/Home';
 import ErrorBoundary from './components/ErrorBoundary';
+import CookieConsent from './components/CookieConsent';
 
 const Book = lazy(() => import('./pages/Book'));
 // The admin panel is loaded only when someone opens /admin.
@@ -33,6 +34,7 @@ export default function App() {
           <Route path="*" element={<Home />} />
         </Routes>
       </Suspense>
+      <CookieConsent />
     </ErrorBoundary>
   );
 }
