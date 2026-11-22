@@ -547,3 +547,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .lb__next { right: 14px; top: 50%; translate: 0 -50%; }
 .lb__count { position: absolute; left: 50%; bottom: max(18px, env(safe-area-inset-bottom)); translate: -50% 0; font-variant-numeric: tabular-nums; color: var(--soft); font-size: 14px; }
 @media (max-width: 600px) { .lb__prev, .lb__next { top: auto; bottom: 10px; translate: none; } .lb { padding: 64px 8px 76px; } }
+
+.callbox { display: grid; gap: 10px; justify-items: start; }
+.callbox > span { font-weight: 600; color: var(--ink); }
+.nowrap { white-space: nowrap; font-variant-numeric: tabular-nums; }

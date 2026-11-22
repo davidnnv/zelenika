@@ -1,0 +1,29 @@
+# Keeps the free Supabase project awake (free projects pause after ~7 days without activity)
+# and wakes the site. Runs every 2 days; can also be started by hand from the Actions tab.
+# The publishable (anon) key is public by design: it is read from the live site, so no secret is needed.
+name: Keep Supabase awake
+
+on:
+  schedule:
+    - cron: '17 6 */2 * *'
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SITE: https://zelenika.onrender.com
+      SUPABASE_URL: https://jkkjzhrfvajyoilhhtbs.supabase.co
+    steps:
+      - name: Ping the site and the database
+        run: |
+          set -euo pipefail
+          curl -fsS -o /dev/null -w "site: %{http_code}\n" "$SITE/"
+          JS=$(curl -fsS "$SITE/" | grep -oE '/assets/index-[A-Za-z0-9_-]+\.js' | head -1)
+          KEY=$(curl -fsS "$SITE$JS" | grep -oE 'sb_publishable_[A-Za-z0-9_-]+|eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+' | head -1)
+          test -n "$KEY" || { echo "Key not found in the site bundle"; exit 1; }
+          DAY=$(date -u -d '+1 day' +%F)
+          curl -fsS -X POST "$SUPABASE_URL/rest/v1/rpc/get_availability" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" -H "Content-Type: application/json" \
+            -d "{\"p_day\":\"$DAY\"}" -o /dev/null -w "database: %{http_code}\n"
