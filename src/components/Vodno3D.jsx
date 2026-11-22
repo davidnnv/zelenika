@@ -221,8 +221,11 @@ export default function Vodno3D({ labels }) {
       const anchors = [
         ['pin', new THREE.Vector3(pinBase.x, pinBase.y + 1.7, pinBase.z)],
         ['cross', new THREE.Vector3(top.x, top.y + 1.2, top.z)],
-        ['city', new THREE.Vector3(small ? 2 : 13, 0.4, 5)],
+        ['city', new THREE.Vector3(2, 0.4, 5)],
       ];
+      // On wide screens the Skopje label goes over the city lights to the right of the text and above the sign:
+      // the first spot (nearest to the mountain foot) that lands in that area is used.
+      const cityOptions = [[6, 3], [5, 2], [7, 1.5], [4, 1], [8, 0.5], [6, -1], [10, -2]].map(([x, z]) => new THREE.Vector3(x, height(x, z) + 0.3, z));
       const tmp = new THREE.Vector3();
       let W0 = 1, H0 = 1;
       const placeLabels = () => {
@@ -230,8 +233,16 @@ export default function Vodno3D({ labels }) {
           const el = tagRefs[k].current;
           if (!el) continue;
           tmp.copy(p).project(camera);
+          if (k === 'city' && !small) {
+            const fit = cityOptions.find((c) => {
+              tmp.copy(c).project(camera);
+              const x = ((tmp.x + 1) / 2) * W0, y = ((1 - tmp.y) / 2) * H0;
+              return tmp.z < 1 && x > W0 * 0.55 && x < W0 * 0.95 && y > H0 * 0.3 && y < H0 * 0.74;
+            });
+            if (fit) tmp.copy(fit).project(camera); else tmp.copy(p).project(camera);
+          }
           const py = ((1 - tmp.y) / 2) * H0;
-          const vis = tmp.z < 1 && Math.abs(tmp.x) < 0.92 && py > 90 && py < H0 - 20;
+          const vis = tmp.z < 1 && Math.abs(tmp.x) < 0.97 && py > 90 && py < H0 - 20;
           el.style.transform = `translate(${((tmp.x + 1) / 2) * W0}px, ${((1 - tmp.y) / 2) * H0}px)`;
           el.style.opacity = vis ? '' : '0';
         }
